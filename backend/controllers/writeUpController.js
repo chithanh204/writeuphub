@@ -257,9 +257,9 @@ exports.incrementShare = async (req, res) => {
 // Feed từ người đang theo dõi (Subscriptions)
 exports.getSubscribedFeed = async (req, res) => {
   try {
-    const currentUserId = req.user.userId;
+    const userId = req.userId;
 
-    const currentUser = await User.findById(currentUserId);
+    const currentUser = await User.findById(userId);
 
     if (!currentUser) {
       return res.status(404).json({ message: 'Không tìm thấy người dùng' });
