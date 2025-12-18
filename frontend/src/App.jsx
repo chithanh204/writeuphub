@@ -9,6 +9,8 @@ import Activity from './pages/Activity';
 import Explore from './pages/Explore';
 import Profile from './pages/Profile';
 import EditPost from './pages/EditPost';
+import AdminUsers from './pages/AdminUsers';
+import AdminPosts from './pages/AdminPosts';
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
         <Route path="/explore" element={<Explore />} />
         <Route path="/profile/:username" element={<Profile />} />
         <Route path="/edit-post/:id" element={<EditPost />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/posts" element={<AdminPosts />} />
       </Routes>
     </Router>
   );

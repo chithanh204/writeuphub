@@ -16,4 +16,7 @@ router.put('/:id', verifyToken, userController.updateUserProfile);
 // PUT /api/users/:id/follow
 router.put('/:id/follow', verifyToken, userController.toggleFollow);
 
+router.get('/admin/all', verifyToken, userController.getAllUsers);
+router.delete('/admin/:id', verifyToken, userController.deleteUser);
+
 module.exports = router;

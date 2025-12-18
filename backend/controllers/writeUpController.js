@@ -406,3 +406,31 @@ exports.deleteWriteUp = async (req, res) => {
     res.status(500).json({ message: 'Lỗi server khi xóa.' });
   }
 };
+
+// Admin lấy tất cả bài viết
+exports.getAllPostsAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (user.role !== 'admin') return res.status(403).json({ message: "Không có quyền!" });
+
+    const posts = await WriteUp.find()
+      .populate('author', 'username') // Lấy tên tác giả
+      .sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
+// Admin xóa bài viết
+exports.deletePostAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (user.role !== 'admin') return res.status(403).json({ message: "Không có quyền!" });
+
+    await WriteUp.findByIdAndDelete(req.params.id);
+    res.json({ message: "Đã xóa bài viết" });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi xóa bài" });
+  }
+};

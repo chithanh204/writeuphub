@@ -55,5 +55,8 @@ router.delete('/:id', verifyToken, writeUpController.deleteWriteUp);
 // Nếu để dòng này lên trên, nó sẽ chặn các route khác
 router.get('/:slug', writeUpController.getWriteUpBySlug);
 
-// Xuất router để server.js sử dụng
+//admin
+router.get('/admin/all', verifyToken, writeUpController.getAllPostsAdmin);
+router.delete('/admin/:id', verifyToken, writeUpController.deletePostAdmin);
+
 module.exports = router;

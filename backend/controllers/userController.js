@@ -106,3 +106,45 @@ exports.updateUserProfile = async (req, res) => {
     res.status(500).json({ message: "Lỗi Server khi cập nhật profile" });
   }
 };
+
+// Lấy danh sách tất cả user (Chỉ Admin)
+exports.getAllUsers = async (req, res) => {
+  try {
+    // 1. Kiểm tra xem người gọi có phải Admin không
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser || currentUser.role !== 'admin') {
+      return res.status(403).json({ message: "Bạn không có quyền admin!" });
+    }
+
+    // 2. Lấy danh sách user (trừ mật khẩu)
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi lấy danh sách user" });
+  }
+};
+
+// Xóa user (Chỉ Admin)
+exports.deleteUser = async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser || currentUser.role !== 'admin') {
+      return res.status(403).json({ message: "Bạn không có quyền admin!" });
+    }
+
+    const userToDelete = await User.findById(req.params.id);
+    if (!userToDelete) {
+      return res.status(404).json({ message: "User không tồn tại" });
+    }
+
+    // Không cho phép tự xóa chính mình
+    if (userToDelete._id.toString() === req.userId) {
+      return res.status(400).json({ message: "Không thể tự xóa tài khoản admin của mình!" });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "Đã xóa user thành công" });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi xóa user" });
+  }
+};
