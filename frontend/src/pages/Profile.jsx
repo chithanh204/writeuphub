@@ -6,9 +6,10 @@ import {
   FaHome, FaUsers, FaBell, FaCompass, FaPen, FaEdit,
   FaTrash, FaRegHeart, FaRegComment, FaShareAlt, FaCamera
 } from 'react-icons/fa';
+import EditProfileModal from '../components/EditProfileModal';
 
 const Profile = () => {
-  const { username } = useParams(); // Lấy username từ URL
+  const { username } = useParams();
   const navigate = useNavigate();
 
   const [profileUser, setProfileUser] = useState(null); // Info người chủ profile
@@ -16,8 +17,13 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('posts'); // posts | likes | activity
   const [loading, setLoading] = useState(true);
 
+  // --- STATE MỚI: Quản lý ẩn/hiện Modal ---
+  const [showEditModal, setShowEditModal] = useState(false);
+
   // Lấy user hiện tại đang đăng nhập để so sánh (xem có phải profile của mình không)
   const currentUser = JSON.parse(localStorage.getItem('user'));
+
+  // Logic kiểm tra chính chủ (So sánh username trên URL và username trong localStorage)
   const isMyProfile = currentUser?.username === username;
 
   // 1. Fetch thông tin User
@@ -58,26 +64,38 @@ const Profile = () => {
     }
   };
 
-  // 3.xóa bài viết
+  // 3. Xóa bài viết
   const handleDelete = async (postId) => {
-    // 1. Hỏi xác nhận
     if (!window.confirm("Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác.")) {
       return;
     }
-
     try {
-      // 2. Gọi API xóa
       await axiosClient.delete(`/writeups/${postId}`);
-
-      // 3. Cập nhật giao diện: Lọc bỏ bài vừa xóa khỏi state danh sách
-      // Giả sử state lưu bài viết tên là 'posts'
       setPosts(prevPosts => prevPosts.filter(p => p._id !== postId));
-
       alert("Đã xóa bài viết!");
     } catch (error) {
       console.error(error);
       alert(error.response?.data?.message || "Lỗi khi xóa bài viết");
     }
+  };
+
+  // --- HÀM MỚI: Xử lý khi Update Profile thành công ---
+  const handleUpdateSuccess = (updatedData) => {
+    // 1. Cập nhật UI Profile ngay lập tức với dữ liệu mới
+    setProfileUser(updatedData);
+
+    // 2. Nếu là chính mình, cập nhật luôn LocalStorage để Navbar hiển thị đúng avatar/tên mới
+    if (currentUser && (currentUser._id === updatedData._id || currentUser.id === updatedData._id)) {
+      const newStorageUser = { ...currentUser, ...updatedData };
+      localStorage.setItem('user', JSON.stringify(newStorageUser));
+    }
+
+    // 3. Nếu username thay đổi, cần navigate sang URL mới để tránh lỗi 404
+    if (updatedData.username !== username) {
+      navigate(`/profile/${updatedData.username}`, { replace: true });
+    }
+
+    alert("Cập nhật hồ sơ thành công!");
   };
 
   // Xử lý chuyển tab
@@ -102,7 +120,7 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900">
-      {/* NAVBAR (Copy từ các trang khác) */}
+      {/* NAVBAR */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm h-16 flex items-center px-4">
         <div className="max-w-7xl mx-auto w-full flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
           <div className="bg-blue-600 text-white p-1.5 rounded font-bold text-lg">W</div>
@@ -123,13 +141,16 @@ const Profile = () => {
         {/* --- MAIN CONTENT (Profile) --- */}
         <main className="col-span-1 md:col-span-9 lg:col-span-10">
 
-          {/* 1. HEADER PROFILE (Giống hình vẽ) */}
+          {/* 1. HEADER PROFILE */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6 relative">
 
-            {/* Cover Photo (Xám) */}
+            {/* Cover Photo */}
             <div className="h-48 bg-gray-500 relative group">
               {isMyProfile && (
-                <button className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 opacity-0 group-hover:opacity-100 transition">
+                <button
+                  onClick={() => setShowEditModal(true)} // Cho phép click vào cover cũng mở modal (tùy chọn)
+                  className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 opacity-0 group-hover:opacity-100 transition"
+                >
                   <FaCamera />
                 </button>
               )}
@@ -137,14 +158,14 @@ const Profile = () => {
 
             <div className="px-6 pb-6">
               <div className="flex justify-between items-end -mt-12 mb-4">
-                {/* Avatar (Cam - Tròn to) */}
+                {/* Avatar */}
                 <div className="relative">
                   <div className="w-32 h-32 rounded-full bg-orange-500 border-4 border-white flex items-center justify-center text-4xl text-white font-bold overflow-hidden shadow-md">
-                    {profileUser.avatar ? <img src={profileUser.avatar} className="w-full h-full object-cover" /> : profileUser.username.charAt(0).toUpperCase()}
+                    {profileUser.avatar ? <img src={profileUser.avatar} className="w-full h-full object-cover" alt="avatar" /> : profileUser.username.charAt(0).toUpperCase()}
                   </div>
                 </div>
 
-                {/* Action Buttons (Giống hình vẽ) */}
+                {/* Action Buttons */}
                 <div className="flex gap-3 mb-2">
                   {isMyProfile ? (
                     <>
@@ -154,7 +175,10 @@ const Profile = () => {
                       >
                         New Post
                       </button>
+
+                      {/* --- SỬA NÚT NÀY: Thêm onClick mở Modal --- */}
                       <button
+                        onClick={() => setShowEditModal(true)}
                         className="px-6 py-2 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition"
                       >
                         Edit profile
@@ -187,7 +211,7 @@ const Profile = () => {
                   key={tab}
                   onClick={() => handleTabChange(tab.toLowerCase())}
                   className={`px-6 py-4 font-bold text-sm border-b-2 transition-colors ${activeTab === tab.toLowerCase()
-                    ? 'border-red-500 text-red-500' // Màu đỏ giống chữ "Posts" trong hình
+                    ? 'border-red-500 text-red-500'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                 >
@@ -201,7 +225,7 @@ const Profile = () => {
           <div className="space-y-4">
             {activeTab === 'activity' ? (
               <div className="bg-white p-8 rounded-lg border border-gray-200 text-center text-gray-500">
-                Chức năng Activity đang phát triển... (Hiển thị lịch sử tham gia, comment)
+                Chức năng Activity đang phát triển...
               </div>
             ) : posts.length > 0 ? (
               posts.map(post => (
@@ -209,7 +233,7 @@ const Profile = () => {
                   {/* Avatar & Info */}
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600 overflow-hidden">
-                      {post.author.avatar ? <img src={post.author.avatar} className="w-full h-full object-cover" /> : post.author.username[0]}
+                      {post.author.avatar ? <img src={post.author.avatar} className="w-full h-full object-cover" alt="author" /> : (post.author.username ? post.author.username[0] : '?')}
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-900">{post.author.username}</h3>
@@ -225,15 +249,12 @@ const Profile = () => {
                     {post.title}
                   </h2>
 
-                  {/* Hình minh họa bài viết (Nếu có trong content - mockup) */}
-                  {/* <div className="h-48 bg-gray-100 rounded-lg mb-3 w-full object-cover"></div> */}
-
                   <div className="flex gap-4 text-gray-500 text-sm mt-3">
                     <span className="flex items-center gap-1"><FaRegHeart /> {post.likes.length}</span>
                     <span className="flex items-center gap-1"><FaRegComment /> {post.comments.length}</span>
                   </div>
 
-                  {/* EDIT / DELETE BUTTONS (Góc dưới phải giống icon thùng rác/bút chì trong hình) */}
+                  {/* EDIT / DELETE BUTTONS */}
                   {isMyProfile && activeTab === 'posts' && (
                     <div className="absolute bottom-4 right-4 flex gap-3">
                       <Link
@@ -244,7 +265,7 @@ const Profile = () => {
                         <FaEdit />
                       </Link>
                       <button
-                        onClick={() => handleDelete(post._id)} // Truyền ID bài viết vào
+                        onClick={() => handleDelete(post._id)}
                         className="p-2 text-gray-500 hover:text-red-600 transition"
                         title="Xóa bài viết"
                       >
@@ -263,6 +284,15 @@ const Profile = () => {
 
         </main>
       </div>
+
+      {/* --- MỚI: Modal Edit Profile đặt ở cuối --- */}
+      <EditProfileModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        user={profileUser}
+        onUpdateSuccess={handleUpdateSuccess}
+      />
+
     </div>
   );
 };

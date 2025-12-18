@@ -1,16 +1,9 @@
-# env
-.env
+# Backend env
+backend/.env
 
-# node
-node_modules/
+# Node
+**/node_modules/
 
-# logs
-npm-debug.log*
-yarn-debug.log*
-
-# build
-dist
-build
-
-# OS
-.DS_Store
+# Build
+**/dist
+**/build

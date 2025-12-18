@@ -14,7 +14,7 @@ module.exports = function (req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // 4. Gán thông tin user vào biến req để các bước sau dùng
-    req.user = decoded;
+    req.userId = decoded.id;
 
     next(); // Cho phép đi tiếp
   } catch (error) {

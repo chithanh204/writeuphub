@@ -23,25 +23,6 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
-// Cập nhật Profile (Avatar, Bio...)
-exports.updateUserProfile = async (req, res) => {
-  try {
-    // Chỉ cho phép update avatar và bio
-    const { bio, avatar } = req.body;
-
-    // req.userId lấy từ token
-    const updatedUser = await User.findByIdAndUpdate(
-      req.userId,
-      { bio, avatar },
-      { new: true }
-    ).select('-password');
-
-    res.json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi cập nhật' });
-  }
-}
-
 // Follow hoặc Unfollow một người dùng
 exports.toggleFollow = async (req, res) => {
   try {
@@ -86,5 +67,42 @@ exports.toggleFollow = async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+exports.updateUserProfile = async (req, res) => {
+  try {
+    console.log("CHECK ID:", {
+      idFromToken: req.userId,
+      idFromURL: req.params.id
+    });
+    // 1. Bảo mật: Kiểm tra xem người đang request có phải là chủ tài khoản không
+    // req.userId lấy từ verifyToken, req.params.id lấy từ URL
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ message: "Bạn chỉ có thể cập nhật tài khoản của mình!" });
+    }
+
+    // 2. Lọc dữ liệu đầu vào (Chỉ cho phép sửa những trường an toàn)
+    const { username, bio, avatar } = req.body;
+
+    // Tạo object chứa thông tin cần update
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (bio !== undefined) updateData.bio = bio; // Cho phép xóa bio (gửi string rỗng)
+    if (avatar) updateData.avatar = avatar;
+
+    // 3. Cập nhật vào Database
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true } // Trả về data MỚI SAU KHI update thay vì data cũ
+    ).select('-password'); // Không trả về mật khẩu
+
+    // 4. Trả kết quả về cho Frontend
+    res.status(200).json(updatedUser);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi Server khi cập nhật profile" });
   }
 };

@@ -12,6 +12,7 @@ const HomeUser = () => {
   const location = useLocation();
 
   // --- 1. SETUP USER & STATE ---
+  // Lấy user từ localStorage (đã được cập nhật bên trang Profile nếu vừa edit xong)
   const user = JSON.parse(localStorage.getItem('user'));
   const currentUserId = user?._id || user?.id;
 
@@ -19,7 +20,6 @@ const HomeUser = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Không cần state followingIds riêng nữa vì ta sẽ dùng data trong post luôn
   const isActive = (path) => location.pathname === path;
 
   // --- 2. API CALLS ---
@@ -42,7 +42,6 @@ const HomeUser = () => {
   }, []);
 
   // --- 3. HANDLERS ---
-
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') {
       fetchPosts(searchTerm);
@@ -81,20 +80,17 @@ const HomeUser = () => {
   const handleShare = async (postId) => {
     try {
       await axiosClient.put(`/writeups/${postId}/share`);
-      alert("Đã sao chép link bài viết!"); // Giả lập copy
+      alert("Đã sao chép link bài viết!");
       fetchPosts(searchTerm);
     } catch (error) {
       console.error(error);
     }
   };
 
-  // --- SỬA LẠI: Xử lý Follow / Unfollow ---
+  // Xử lý Follow / Unfollow
   const handleFollow = async (authorId) => {
     if (!authorId) return;
 
-    // 1. Cập nhật giao diện ngay lập tức (Optimistic UI)
-    // Chúng ta sẽ duyệt qua TẤT CẢ các bài viết.
-    // Bài nào của tác giả này thì cập nhật lại mảng followers của tác giả đó.
     setPosts(prevPosts => prevPosts.map(post => {
       if (post.author._id === authorId) {
         const followers = post.author.followers || [];
@@ -105,8 +101,8 @@ const HomeUser = () => {
           author: {
             ...post.author,
             followers: isFollowing
-              ? followers.filter(id => id !== currentUserId) // Unfollow
-              : [...followers, currentUserId]                // Follow
+              ? followers.filter(id => id !== currentUserId)
+              : [...followers, currentUserId]
           }
         };
       }
@@ -114,23 +110,23 @@ const HomeUser = () => {
     }));
 
     try {
-      // 2. Gọi API Backend
       await axiosClient.put(`/users/${authorId}/follow`);
 
-      // 3. (Tùy chọn) Cập nhật lại localStorage để các trang khác dùng nếu cần
-      // Đoạn này chỉ để đồng bộ client, logic hiển thị chính vẫn dựa vào `posts`
-      const isCurrentlyFollowing = user.following.includes(authorId);
-      const newFollowingList = isCurrentlyFollowing
-        ? user.following.filter(id => id !== authorId)
-        : [...user.following, authorId];
+      // Update LocalStorage cho đồng bộ
+      if (user) {
+        const isCurrentlyFollowing = user.following?.includes(authorId);
+        const newFollowingList = isCurrentlyFollowing
+          ? user.following.filter(id => id !== authorId)
+          : [...(user.following || []), authorId];
 
-      const updatedUser = { ...user, following: newFollowingList };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+        const updatedUser = { ...user, following: newFollowingList };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
 
     } catch (error) {
       console.error("Lỗi follow:", error);
       alert("Có lỗi xảy ra khi theo dõi!");
-      fetchPosts(); // Load lại nếu lỗi
+      fetchPosts();
     }
   };
 
@@ -180,9 +176,24 @@ const HomeUser = () => {
               <FaPen size={14} /> Viết bài
             </button>
             <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div onClick={() => navigate(`/profile/${user?.username}`)} className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold cursor-pointer hover:ring-2 ring-blue-300 transition">
-                {user?.username?.charAt(0).toUpperCase()}
+
+              {/* --- SỬA PHẦN NÀY: AVATAR GÓC TRÊN --- */}
+              <div
+                onClick={() => navigate(`/profile/${user?.username}`)}
+                className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 cursor-pointer hover:ring-2 ring-blue-300 transition"
+              >
+                {user?.avatar ? (
+                  // Nếu có avatar thì hiện ảnh
+                  <img src={user.avatar} alt="My Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  // Nếu không có thì hiện chữ cái đầu trên nền gradient
+                  <div className="w-full h-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                    {user?.username?.charAt(0).toUpperCase()}
+                  </div>
+                )}
               </div>
+              {/* -------------------------------------- */}
+
               <button onClick={handleLogout} title="Đăng xuất" className="text-gray-400 hover:text-red-500 ml-2">
                 <FaSignOutAlt />
               </button>
@@ -209,9 +220,6 @@ const HomeUser = () => {
           {!loading && posts.length > 0 && posts.map(post => {
             const isMyPost = user?.username === post.author?.username;
             const isLiked = post.likes.includes(currentUserId);
-
-            // --- LOGIC MỚI: Kiểm tra dựa trên dữ liệu thật của bài viết ---
-            // Backend trả về post.author.followers là 1 mảng các ID
             const isFollowingAuthor = post.author?.followers?.includes(currentUserId);
 
             return (
@@ -234,8 +242,8 @@ const HomeUser = () => {
                       onClick={() => handleFollow(post.author?._id)}
                       className={`text-xs font-bold px-3 py-1.5 rounded-full transition flex items-center gap-1 border
                         ${isFollowingAuthor
-                          ? 'bg-white text-gray-500 border-gray-300 hover:text-red-500 hover:border-red-300' // Đã follow
-                          : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100' // Chưa follow
+                          ? 'bg-white text-gray-500 border-gray-300 hover:text-red-500 hover:border-red-300'
+                          : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'
                         }`}
                     >
                       {isFollowingAuthor ? (
@@ -318,7 +326,6 @@ const HomeUser = () => {
   );
 };
 
-// Component phụ giữ nguyên
 const SidebarItem = ({ icon, text, active }) => (
   <div className={`flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer transition-all ${active ? 'bg-white text-blue-600 font-bold shadow-sm border border-gray-200' : 'text-gray-600 hover:bg-white hover:shadow-sm'}`}>
     <span className={active ? 'text-blue-600' : 'text-gray-500'}>{icon}</span>
